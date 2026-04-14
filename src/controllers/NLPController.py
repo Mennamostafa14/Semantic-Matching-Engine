@@ -134,3 +134,36 @@ class NLPController(BaseController):
         )
 
         return answer, full_prompt, chat_history
+    
+
+    def search_all_collections(self, text: str, limit: int = 50):
+        """
+        Search across every collection in the vector DB.
+        Returns a flat list of RetrievedDocument-like dicts
+        with an extra 'project_id' key derived from the collection name.
+        """
+        collections = self.vectordb_client.list_all_collections()
+        vector = self.embedding_client.embed_text(
+            text=text,
+            document_type=DocumentTypeEnum.QUERY.value
+        )
+        if not vector or len(vector) == 0:
+            return None
+
+        all_results = []
+        for col in collections.collections:          # QdrantClient returns CollectionsResponse
+            col_name = col.name
+            results = self.vectordb_client.search_by_vector(
+                collection_name=col_name,
+                vector=vector,
+                limit=limit,
+            )
+            if results:
+                project_id = col_name.replace("collection_", "", 1)
+                for r in results:
+                    all_results.append({
+                        "project_id": project_id,
+                        "text": r.text,
+                        "score": r.score,
+                    })
+        return all_results

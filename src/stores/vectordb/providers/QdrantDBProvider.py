@@ -125,7 +125,7 @@ class QdrantDBProvider(VectorDBInterface):
             except Exception as e:
                 self.logger.error(f"Error while inserting batch: {e}")
                 return False
-
+        print("Inserted:", len(texts))
         return True
         
     def search_by_vector(self, collection_name: str, vector: list, limit: int = 5):
@@ -133,7 +133,8 @@ class QdrantDBProvider(VectorDBInterface):
         results = self.client.search(
             collection_name=collection_name,
             query_vector=vector,
-            limit=limit
+            limit=limit,
+            with_payload=True
         )
 
         if not results or len(results) == 0:
@@ -143,6 +144,7 @@ class QdrantDBProvider(VectorDBInterface):
             RetrievedDocument(**{
                 "score": result.score,
                 "text": result.payload["text"],
+                "metadata":result.payload.get("metadata")
             })
             for result in results
         ]

@@ -10,8 +10,8 @@ app = FastAPI()
 
 async def startup_span():
     settings = get_settings()
-    app.mongo_conn = AsyncIOMotorClient(settings.MONGODB_URL)
-    app.db_client = app.mongo_conn[settings.MONGODB_DATABASE]
+    # app.mongo_conn = AsyncIOMotorClient(settings.MONGODB_URL)
+    # app.db_client = app.mongo_conn[settings.MONGODB_DATABASE]
 
     llm_provider_factory = LLMProviderFactory(settings)
     vectordb_provider_factory = VectorDBProviderFactory(settings)
@@ -34,7 +34,7 @@ async def startup_span():
 
 
 async def shutdown_span():
-    app.mongo_conn.close()
+    # app.mongo_conn.close()
     app.vectordb_client.disconnect()
 
 app.on_event("startup")(startup_span)
