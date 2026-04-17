@@ -2,6 +2,7 @@
 # Public re-exports so callers can do:
 #   from helpers import clean_text, detect_section, ...
 from .text_cleaner import clean_text
+from .config import Settings
 from .section_detector import (
     SectionSpec,
     SECTION_REGISTRY,
