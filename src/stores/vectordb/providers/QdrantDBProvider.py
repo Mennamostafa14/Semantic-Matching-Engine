@@ -109,7 +109,8 @@ class QdrantDBProvider(VectorDBInterface):
                     id=batch_record_ids[x],
                     vector=batch_vectors[x],
                     payload={
-                        "text": batch_texts[x], "metadata": batch_metadata[x]
+                        "text": batch_texts[x],
+                        **batch_metadata[x]  # guard against None
                     }
                 )
 
@@ -143,8 +144,11 @@ class QdrantDBProvider(VectorDBInterface):
         return [
             RetrievedDocument(**{
                 "score": result.score,
-                "text": result.payload["text"],
-                "metadata":result.payload.get("metadata")
+                "text": result.payload.get("text"),
+                "metadata": {
+                    k: v for k, v in result.payload.items()
+                    if k != "text"       # everything except "text" IS the metadata
+                }
             })
             for result in results
         ]
