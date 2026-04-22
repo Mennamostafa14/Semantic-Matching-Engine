@@ -2,6 +2,8 @@
 import re
 
 
+
+
 def clean_text(text: str) -> str:
     """
     Normalize raw extracted text from PDF/TXT loaders.
@@ -29,3 +31,5 @@ def clean_text(text: str) -> str:
         if len(line) > 2 and not re.fullmatch(r'[\d\s\W]+', line)
     ]
     return '\n'.join(lines).strip()
+
+

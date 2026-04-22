@@ -63,7 +63,7 @@ def collect_project(project_path, output_file):
 if __name__ == "__main__":
     # ✏️ عدلي هنا بس
     project_folder = r"D:\AI-Projects\Semantic-Matching-Engine\src"   # حطي مسار مشروعك
-    output_file = "full_project.md"
+    output_file = "full_project1.md"
 
     collect_project(project_folder, output_file)
     print(f"📂 Saved at: {os.path.abspath(output_file)}")

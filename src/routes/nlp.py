@@ -12,6 +12,8 @@ from collections import defaultdict
 import numpy as np
 import hashlib
 from stores.llm.LLMEnums import DocumentTypeEnum
+from helpers.proposal_analysis import generate_similarity_analysis
+from concurrent.futures import ThreadPoolExecutor
 
 logger = logging.getLogger('uvicorn.error')
 
@@ -119,6 +121,21 @@ async def push_proposal(
 
 # ── compare (upgraded) ────────────────────────────────────────────────────────
 
+# ── additions to the top of nlp.py ───────────────────────────────────────────
+#
+# Add these two lines alongside your existing imports:
+#
+#   from routes.proposal_analysis import generate_similarity_analysis
+#   from concurrent.futures import ThreadPoolExecutor, as_completed
+#
+# Add this to your FastAPI lifespan / startup event (once, not per-request):
+#
+#   from routes.proposal_analysis import configure_gemini
+#   configure_gemini(api_key=settings.GEMINI_API_KEY)
+#
+# ─────────────────────────────────────────────────────────────────────────────
+
+
 @nlp_router.post("/index/compare")
 async def compare_proposal(
     request: Request,
@@ -127,22 +144,16 @@ async def compare_proposal(
     chunk_size: int = Form(300),
     overlap_size: int = Form(50),
     search_limit: int = Form(50),
-    min_chunks: int = Form(2),          # noise filter: ignore proposals below this
+    min_chunks: int = Form(2),
+    explain: bool = Form(False),        # NEW: opt-in to LLM analysis
+    explain_top_n: int = Form(3),       # NEW: how many proposals to explain (max)
 ):
     """
-    Semantic comparison pipeline:
-      1.  Extract + clean + chunk the uploaded file.
-      2.  Embed every chunk with QUERY document type.
-      3.  Mean-pool chunk vectors → single query vector.
-      4.  Multi-query search: also search per-chunk for top-K then merge
-          (hybrid: global + local retrieval).
-      5.  Extract query keywords.
-      6.  Group hits → proposal → section.
-      7.  Re-rank using vector score + keyword overlap + section importance.
-      8.  Return structured explainable response.
+    Semantic comparison pipeline — unchanged through step 7.
+    Step 8 (optional): generate LLM explanation for top-N proposals.
     """
 
-    # ── helpers ──────────────────────────────────────────────────────────────
+    # ── helpers (unchanged) ──────────────────────────────────────────────────
 
     def _mean_pool(vecs: list[list[float]]) -> list[float]:
         arr  = np.array(vecs, dtype=np.float32)
@@ -151,7 +162,6 @@ async def compare_proposal(
         return (mean / norm).tolist() if norm > 0 else mean.tolist()
 
     def _parse_hit(r) -> dict | None:
-        """Safely convert a RetrievedDocument to a raw hit dict."""
         meta = r.metadata or {}
         pid  = meta.get("proposal_id")
         if not pid:
@@ -164,7 +174,7 @@ async def compare_proposal(
             "score":      r.score,
         }
 
-    # ── 1. read file ─────────────────────────────────────────────────────────
+    # ── 1. read file ──────────────────────────────────────────────────────────
     file_bytes = await file.read()
     if not file_bytes:
         return JSONResponse(status_code=400, content={"signal": "empty_file"})
@@ -203,18 +213,7 @@ async def compare_proposal(
     if not chunk_vectors:
         return JSONResponse(status_code=400, content={"signal": "embedding_error"})
 
-    # ── 4. hybrid retrieval: global (mean-pool) + local (per-chunk) ───────────
-    #
-    # Why both?
-    #   • Mean-pool vector captures the document's overall topic.
-    #     Good for finding globally similar proposals.
-    #   • Per-chunk vectors find fine-grained section-level matches.
-    #     Good for finding proposals that share ONE very specific component
-    #     (e.g. same objectives but different background).
-    #
-    # We deduplicate by (project_id, text) so the same chunk doesn't inflate
-    # the score if it shows up in both search passes.
-
+    # ── 4. hybrid retrieval ───────────────────────────────────────────────────
     collection_name = "proposals"
     seen: set[tuple[str, str]] = set()
     raw_hits: list[dict] = []
@@ -231,7 +230,6 @@ async def compare_proposal(
                 seen.add(key)
                 raw_hits.append(hit)
 
-    # 4a. global search with mean-pooled vector
     global_vector = _mean_pool(chunk_vectors)
     _collect(
         request.app.vectordb_client.search_by_vector(
@@ -241,9 +239,6 @@ async def compare_proposal(
         )
     )
 
-    # 4b. local search: use only HIGH-WEIGHT section chunks (objectives,
-    #     problem_definition) to avoid diluting results with boilerplate.
-    #     Cap at 3 chunk queries to stay within reasonable latency.
     high_value_chunks = [
         c for c in chunks
         if (c.metadata or {}).get("section") in ("objectives", "problem_definition")
@@ -267,10 +262,27 @@ async def compare_proposal(
         return JSONResponse(status_code=400, content={"signal": "vectordb_search_error"})
 
     # ── 5. extract query keywords ─────────────────────────────────────────────
-    query_full_text  = " ".join(c.page_content for c in chunks)
-    query_keywords   = extract_keywords(query_full_text, top_n=20)
+    query_full_text = " ".join(c.page_content for c in chunks)
+    query_keywords  = extract_keywords(query_full_text, top_n=20)
 
-    # ── 6 + 7. group, score, re-rank (delegated to scoring.py) ───────────────
+#-----------------------------------------------------------------------------
+    # ── Build query proposal context (NEW) ─────────────────────────────
+
+    query_proposal = {
+        "project_id": "query",
+        "overall_score": 100,  # مش مهم هنا
+        "sections": {},        # اختياري
+        "keywords": {
+            "overlap": query_keywords
+        },
+        "top_passages": [
+            {
+                "score": 100,
+                "text": query_full_text[:500]  # جزء من النص
+            }
+        ]
+    }
+    # ── 6 + 7. group, score, re-rank ─────────────────────────────────────────
     proposals = build_proposals(
         raw_hits=raw_hits,
         query_keywords=query_keywords,
@@ -284,7 +296,45 @@ async def compare_proposal(
             content={"signal": "no_proposals_above_threshold"},
         )
 
-    # ── 8. summary + response ─────────────────────────────────────────────────
+    # ── 8. LLM analysis (opt-in, non-blocking) ────────────────────────────────
+    #
+    # Why ThreadPoolExecutor and not asyncio.gather?
+    #   google-generativeai's generate_content() is a synchronous blocking
+    #   call.  Running it directly in an async endpoint would block the entire
+    #   event loop.  We offload it to a thread pool so FastAPI stays responsive
+    #   while Gemini calls run in parallel across the top-N proposals.
+    #
+    # Why opt-in (explain=False by default)?
+    #   LLM calls add ~1–3 s of latency per proposal.  Clients that only need
+    #   scores should not pay that cost.
+
+
+ 
+    if explain:
+        top_n = min(explain_top_n, len(proposals))
+
+        with ThreadPoolExecutor(max_workers=3) as executor:
+            futures = [
+                executor.submit(
+                    generate_similarity_analysis,
+                    query_proposal,
+                    proposals[i],
+                    request.app.generation_client
+                )
+                for i in range(top_n)
+            ]
+
+            analyses = [f.result() for f in futures]
+
+        # attach explanation to proposals
+        for i in range(top_n):
+            proposals[i]["llm_analysis"] = analyses[i]["analysis"]
+
+    else:
+        for proposal in proposals:
+            proposal["analysis"] = None
+
+    # ── 9. summary + response ─────────────────────────────────────────────────
     overall_scores = [p["overall_score"] for p in proposals]
     summary = {
         "file_name":          file.filename,
@@ -294,6 +344,7 @@ async def compare_proposal(
         "projects_found":     len(proposals),
         "highest_similarity": max(overall_scores)  if overall_scores else 0,
         "average_similarity": round(sum(overall_scores) / len(overall_scores), 2) if overall_scores else 0,
+        "llm_analysis":       explain,
     }
 
     return JSONResponse(content={

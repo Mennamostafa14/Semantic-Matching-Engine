@@ -1,8 +1,9 @@
 # helpers/__init__.py
 # Public re-exports so callers can do:
 #   from helpers import clean_text, detect_section, ...
-from .text_cleaner import clean_text
+from .text_cleaner import clean_text 
 from .config import Settings
+from .proposal_analysis import generate_similarity_analysis
 from .section_detector import (
     SectionSpec,
     SECTION_REGISTRY,
@@ -26,4 +27,6 @@ __all__ = [
     "load_from_bytes",
     "chunk_section_docs",
     "enrich_chunk_metadata",
+    "generate_similarity_analysis",
+
 ]

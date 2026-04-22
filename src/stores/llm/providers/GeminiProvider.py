@@ -1,7 +1,7 @@
 from ..LLMInterface import LLMInterface
 import logging
 from google import genai
-
+import time
 
 class GeminiProvider(LLMInterface):
 
@@ -70,10 +70,24 @@ class GeminiProvider(LLMInterface):
         try:
             response = self.client.models.generate_content(
                 model=self.generation_model_id,
-                contents=self.process_text(prompt),
-                generation_config={
+                    contents=[
+                {
+                    "role": "user",
+                    "parts": [
+                        {
+                            "text": (
+                                "You are a strict JSON generator. "
+                                "Return ONLY valid JSON. No extra text.\n\n"
+                                + self.process_text(prompt)
+                            )
+                        }
+                    ]
+                }
+            ],
+                config={
                     "temperature": temperature,
-                    "max_output_tokens": max_output_tokens
+                    "max_output_tokens": max_output_tokens,
+                    "response_mime_type": "application/json" 
                 }
             )
 
@@ -81,7 +95,25 @@ class GeminiProvider(LLMInterface):
                 self.logger.error("Empty response from Gemini generation")
                 return None
 
-            return response.text
+            text = None
+
+            # Case 1: normal SDK response
+            if hasattr(response, "text") and response.text:
+                text = response.text
+
+            # Case 2: structured response (new Gemini SDK behavior)
+            elif hasattr(response, "candidates"):
+                try:
+                    text = response.candidates[0].content.parts[0].text
+                except Exception:
+                    text = None
+
+            if not text:
+                self.logger.error("Empty extracted text from Gemini response")
+                return None
+
+            return text
+
 
         except Exception as e:
             self.logger.error(f"Gemini generation error: {e}")
