@@ -1,3 +1,6 @@
+# uvicorn main:app --reload
+# conda activate semantic-match
+
 from fastapi import FastAPI
 from routes import data, nlp
 # from motor.motor_asyncio import AsyncIOMotorClient

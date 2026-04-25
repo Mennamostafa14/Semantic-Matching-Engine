@@ -4,7 +4,6 @@ from __future__ import annotations
 import json
 import logging
 import re
-import textwrap
 
 logger = logging.getLogger(__name__)
 
@@ -84,33 +83,33 @@ Top evidence:
 {top_passage}
 """
 
-def build_llm_context(proposal: dict) -> str:
-    sections = proposal.get("sections", {})
+# def build_llm_context(proposal: dict) -> str:
+#     sections = proposal.get("sections", {})
 
-    section_summary = "\n".join([
-        f"- {name}: {data.get('final_score', 0)}% (weight={data.get('section_weight')})"
-        for name, data in sections.items()
-    ])
+#     section_summary = "\n".join([
+#         f"- {name}: {data.get('final_score', 0)}% (weight={data.get('section_weight')})"
+#         for name, data in sections.items()
+#     ])
 
-    keywords = ", ".join(proposal.get("keywords", {}).get("overlap", [])[:10])
+#     keywords = ", ".join(proposal.get("keywords", {}).get("overlap", [])[:10])
 
-    top_passages = "\n".join([
-        f"- ({p['score']}%) {p['text'][:150]}"
-        for p in proposal.get("top_passages", [])[:3]
-    ])
+#     top_passages = "\n".join([
+#         f"- ({p['score']}%) {p['text'][:150]}"
+#         for p in proposal.get("top_passages", [])[:3]
+#     ])
 
-    return f"""
-Overall similarity: {proposal.get('overall_score')}%
+#     return f"""
+# Overall similarity: {proposal.get('overall_score')}%
 
-Section similarity:
-{section_summary}
+# Section similarity:
+# {section_summary}
 
-Common keywords:
-{keywords}
+# Common keywords:
+# {keywords}
 
-Top matching passages:
-{top_passages}
-"""
+# Top matching passages:
+# {top_passages}
+# """
 
 # ----------------------------------------------------------------------------
 # helpers/proposal_analysis.py

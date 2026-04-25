@@ -338,17 +338,17 @@ async def compare_proposal(
     overall_scores = [p["overall_score"] for p in proposals]
     summary = {
         "file_name":          file.filename,
-        "text_length":        sum(len(c.page_content) for c in chunks),
-        "chunks_embedded":    len(chunk_vectors),
-        "total_hits":         len(raw_hits),
-        "projects_found":     len(proposals),
-        "highest_similarity": max(overall_scores)  if overall_scores else 0,
-        "average_similarity": round(sum(overall_scores) / len(overall_scores), 2) if overall_scores else 0,
         "llm_analysis":       explain,
     }
 
     return JSONResponse(content={
-        "signal":    ResponseSignal.VECTORDB_SEARCH_SUCCESS.value,
-        "summary":   summary,
-        "proposals": proposals,
+        "file_name": file.filename,
+        "llm_analysis": [
+            {
+                "proposal_id": p["project_id"],
+                "llm_analysis": p["llm_analysis"]
+            }
+            for p in proposals
+            if p.get("llm_analysis")
+        ]
     })
