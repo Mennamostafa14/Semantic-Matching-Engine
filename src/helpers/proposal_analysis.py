@@ -113,21 +113,23 @@ Top matching passages:
 """
 
 # ----------------------------------------------------------------------------
-def safe_parse_llm_output(raw: str):
+# helpers/proposal_analysis.py
+
+def safe_parse_llm_output(raw):
+    # Guard: LLM returned nothing
+    if not raw or not isinstance(raw, str):
+        return {"error": "LLM returned no output"}
+
     try:
         return json.loads(raw)
-    except:
-        # محاولة تنظيف لو LLM رجع text زيادة
+    except (TypeError, json.JSONDecodeError):
         match = re.search(r"\{.*\}", raw, re.DOTALL)
         if match:
             try:
                 return json.loads(match.group())
-            except:
+            except json.JSONDecodeError:
                 pass
-    return {
-        "error": "invalid_json",
-        "raw_output": raw
-    }
+        return {"raw_text": raw}  # return whatever we got
 # ---------------------------------------------------------------------------
 # Public function
 # ---------------------------------------------------------------------------
