@@ -15,7 +15,7 @@ from .section_detector import (
 from .file_loader import load_from_bytes
 from .chunking import chunk_section_docs
 from .metadata import enrich_chunk_metadata
-
+from .retrieval_utils import _mean_pool, _parse_hit
 __all__ = [
     "clean_text",
     "SectionSpec",
