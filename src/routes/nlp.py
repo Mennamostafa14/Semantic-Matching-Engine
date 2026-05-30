@@ -148,7 +148,7 @@ async def compare_index(
         embedding_client=request.app.embedding_client,
     )
 
-    result = await nlp_controller.compare_documents(file=file)
+    result = await nlp_controller.compare_documents_scores_only(file=file)
 
     if not result:
         return JSONResponse(
@@ -157,3 +157,4 @@ async def compare_index(
         )
 
     return JSONResponse(content=result)
+

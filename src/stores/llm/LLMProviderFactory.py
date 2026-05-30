@@ -1,5 +1,5 @@
 from .LLMEnums import LLMEnums
-from .providers import GeminiProvider
+from .providers import GeminiProvider,OpenAIProvider,SentenceTransformerProvider,OllamaProvider
 
 class LLMProviderFactory:
     def __init__(self,config:dict):
@@ -13,5 +13,27 @@ class LLMProviderFactory:
             default_generation_max_output_tokens=self.config.GENERATION_DAFAULT_MAX_TOKENS,
             default_generation_temperature=self.config.GENERATION_DAFAULT_TEMPERATURE
         )
+        if provider == LLMEnums.OPENAI.value:
+            return OpenAIProvider(
+                api_key = self.config.OPENAI_API_KEY,
+                api_url = self.config.OPENAI_API_URL,
+                default_input_max_characters=self.config.INPUT_DAFAULT_MAX_CHARACTERS,
+                default_generation_max_output_tokens=self.config.GENERATION_DAFAULT_MAX_TOKENS,
+                default_generation_temperature=self.config.GENERATION_DAFAULT_TEMPERATURE
+            )
 
+        if provider == LLMEnums.OLLAMA.value:
+            return OllamaProvider(
+                base_url=self.config.OLLAMA_BASE_URL,
+                default_input_max_characters=self.config.INPUT_DAFAULT_MAX_CHARACTERS,
+                default_generation_max_output_tokens=self.config.GENERATION_DAFAULT_MAX_TOKENS,
+                default_generation_temperature=self.config.GENERATION_DAFAULT_TEMPERATURE,
+            )
+        
+        if provider == LLMEnums.SENTENCE_TRANSFORMER.value:
+
+            return SentenceTransformerProvider(
+                model_id=self.config.EMBEDDING_MODEL_ID,
+                default_input_max_characters=self.config.INPUT_DAFAULT_MAX_CHARACTERS,
+            )
         raise ValueError(f"Unsupported LLM provider: {provider}")

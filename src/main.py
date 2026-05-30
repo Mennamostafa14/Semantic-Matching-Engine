@@ -7,10 +7,10 @@ from routes import nlp
 from helpers.config import get_settings
 from stores.llm.LLMProviderFactory import LLMProviderFactory
 from stores.vectordb.VectorDBProviderFactory import VectorDBProviderFactory
-
+from utils.metrics import setup_metrics
 
 app = FastAPI()
-
+setup_metrics(app)
 async def startup_span():
     settings = get_settings()
     # app.mongo_conn = AsyncIOMotorClient(settings.MONGODB_URL)
