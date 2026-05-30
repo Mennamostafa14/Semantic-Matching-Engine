@@ -12,17 +12,13 @@ services:
     networks:
       - backend
     restart: always
-    depends_on:
-      qdrant:
-        condition: service_started
-      ollama:
-        condition: service_started
+
     env_file:
       - ./env/.env.app
 
   # Nginx Service
   nginx:
-    image: nginx:stable-alpine3.23-perl
+    image: nginx:stable-alpine3.20-perl
     container_name: nginx
     ports:
       - "80:80"
@@ -104,25 +100,17 @@ services:
     networks:
       - backend
     restart: always
-
+  # OLLAMA for LLM models
   ollama:
-      image: ollama/ollama:latest
-      container_name: ollama
-      ports:
-        - "11434:11434"
-      volumes:
-        - ollama_data:/root/.ollama
-      networks:
-        - backend
-      restart: always
-      deploy:
-        resources:
-          reservations:
-            devices:
-              - driver: nvidia
-                count: all
-                capabilities: [gpu]
-
+    image: ollama/ollama:latest
+    container_name: ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    networks:
+      - backend
+    restart: always
 
 
 networks:
@@ -132,6 +120,6 @@ networks:
 volumes:
   fastapi_data:
   qdrant_data:
-  ollama_data:
   prometheus_data:
   grafana_data:
+  ollama_data:
