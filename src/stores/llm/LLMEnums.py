@@ -6,6 +6,7 @@ class LLMEnums(Enum):
     OPENAI = "OPENAI"
     SENTENCE_TRANSFORMER = "SENTENCE_TRANSFORMER"
     OLLAMA="OLLAMA"
+    # GROQ="GROQ"
 
 class OpenAIEnums(Enum):
     SYSTEM = "system"

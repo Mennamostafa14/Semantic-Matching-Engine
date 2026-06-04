@@ -15,8 +15,6 @@ services:
     depends_on:
       qdrant:
         condition: service_started
-      ollama-pull:
-        condition: service_completed_successfully
     env_file:
       - ./env/.env.app
     restart: always
@@ -107,36 +105,7 @@ services:
     networks:
       - backend
     restart: always
-  # OLLAMA for LLM models
-  ollama:
-    image: ollama/ollama:latest
-    container_name: ollama
-    ports:
-      - "11434:11434"
-    volumes:
-      - ollama_data:/root/.ollama
-    networks:
-      - backend
-    restart: always
 
-  ollama-pull:
-    image: curlimages/curl:latest
-    depends_on:
-      - ollama
-    networks:
-      - backend
-    restart: "no"
-    entrypoint:
-      - sh
-      - -c
-      - |
-        echo "Waiting for Ollama..." &&
-        until curl -s http://ollama:11434/api/tags; do sleep 2; done &&
-        echo "Pulling model qwen2.5:3b..." &&
-        curl -X POST http://ollama:11434/api/pull \
-          -H "Content-Type: application/json" \
-          -d '{"name":"qwen2.5:3b"}' &&
-        echo "Model ready!"
 
 networks:
   backend:
@@ -147,4 +116,3 @@ volumes:
   qdrant_data:
   prometheus_data:
   grafana_data:
-  ollama_data:

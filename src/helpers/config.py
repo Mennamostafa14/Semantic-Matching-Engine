@@ -6,7 +6,7 @@ class Settings(BaseSettings):
     APP_VERSION: str
 
     OPENAI_API_KEY:str
-    OLLAMA_BASE_URL:str
+    OPENAI_API_URL:str
     # GEMINI_API_KEY:str
     # GENERATION_MODEL_ID:str
     
