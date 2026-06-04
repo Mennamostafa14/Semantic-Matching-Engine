@@ -10,7 +10,6 @@ pydantic>=2.9.0,<3.0.0
 pydantic-settings==2.2.1
 
 
-
 openai==1.75.0
 
 # Vector DB
@@ -19,7 +18,10 @@ qdrant-client==1.10.1
 # File processing
 PyMuPDF==1.24.3
 
-
+# MongoDB
+motor==3.4.0
+pymongo==4.8.0  
+pydantic-mongo==2.3.0
 
 langchain-community>=0.0.10
 sentence-transformers==3.0.1
