@@ -18,9 +18,9 @@ class OllamaEnums(Enum):
     USER = "user"
     ASSISTANT = "assistant"
 
-class GeminiRoleEnum(Enum):
-    USER = "user"
-    MODEL = "model"
+# class GeminiRoleEnum(Enum):
+#     USER = "user"
+#     MODEL = "model"
 
 
 class DocumentTypeEnum(Enum):
