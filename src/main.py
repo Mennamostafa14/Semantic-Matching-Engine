@@ -1,48 +1,57 @@
-# uvicorn main:app --reload
-# conda activate semantic-match
-
 from fastapi import FastAPI
+from contextlib import asynccontextmanager
 from routes import nlp
-# from motor.motor_asyncio import AsyncIOMotorClient
 from helpers.config import get_settings
 from stores.llm.LLMProviderFactory import LLMProviderFactory
 from stores.vectordb.VectorDBProviderFactory import VectorDBProviderFactory
 from utils.metrics import setup_metrics
+import logging
 
-app = FastAPI()
-setup_metrics(app)
-async def startup_span():
-    settings = get_settings()
-    # app.mongo_conn = AsyncIOMotorClient(settings.MONGODB_URL)
-    # app.db_client = app.mongo_conn[settings.MONGODB_DATABASE]
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO)
 
-    llm_provider_factory = LLMProviderFactory(settings)
-    vectordb_provider_factory = VectorDBProviderFactory(settings)
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # ── Startup ──
+    try:
+        logger.info("🚀 Starting up...")
+        settings = get_settings()
 
-    # generation client
-    app.generation_client = llm_provider_factory.create(provider=settings.GENERATION_BACKEND)
-    app.generation_client.set_generation_model(model_id = settings.GENERATION_MODEL_ID)
+        llm_provider_factory = LLMProviderFactory(settings)
+        vectordb_provider_factory = VectorDBProviderFactory(settings)
 
-    # embedding client
-    app.embedding_client = llm_provider_factory.create(provider=settings.EMBEDDING_BACKEND)
-    app.embedding_client.set_embedding_model(model_id=settings.EMBEDDING_MODEL_ID,
-                                             embedding_size=settings.EMBEDDING_MODEL_SIZE)
-    
-    # vector db client
-    app.vectordb_client = vectordb_provider_factory.create(
-        provider=settings.VECTOR_DB_BACKEND
-    )
-    app.vectordb_client.connect()
+        logger.info("Loading generation client...")
+        app.generation_client = llm_provider_factory.create(provider=settings.GENERATION_BACKEND)
+        app.generation_client.set_generation_model(model_id=settings.GENERATION_MODEL_ID)
+        logger.info("✅ Generation client ready.")
 
+        logger.info("Loading embedding client...")
+        app.embedding_client = llm_provider_factory.create(provider=settings.EMBEDDING_BACKEND)
+        app.embedding_client.set_embedding_model(
+            model_id=settings.EMBEDDING_MODEL_ID,
+            embedding_size=settings.EMBEDDING_MODEL_SIZE
+        )
+        logger.info("✅ Embedding client ready.")
 
+        logger.info("Connecting to VectorDB...")
+        app.vectordb_client = vectordb_provider_factory.create(
+            provider=settings.VECTOR_DB_BACKEND
+        )
+        app.vectordb_client.connect()
+        logger.info("✅ VectorDB connected.")
 
-async def shutdown_span():
-    # app.mongo_conn.close()
+        logger.info("✅ Startup complete.")
+
+    except Exception as e:
+        logger.error(f"❌ STARTUP FAILED: {e}", exc_info=True)
+        raise  # مهم — خلّي Railway يشوف الـ error
+
+    yield  # ── التطبيق شغّال ──
+
+    # ── Shutdown ──
+    logger.info("Shutting down...")
     app.vectordb_client.disconnect()
 
-app.on_event("startup")(startup_span)
-app.on_event("shutdown")(shutdown_span)
-
-
-
+app = FastAPI(lifespan=lifespan)
+setup_metrics(app)
 app.include_router(nlp.nlp_router)
