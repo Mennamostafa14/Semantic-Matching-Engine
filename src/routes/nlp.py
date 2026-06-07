@@ -85,14 +85,17 @@ async def push_proposal(
             )
         )
 
-    # 3. Embed with None-filtering
-    embedded = []
-    for text, meta in zip(texts, metadata):
-        vec = nlp_controller.embedding_client.embed_text(text=text, document_type="document")
-        if vec:
-            embedded.append((text, meta, vec))
-        else:
-            logger.warning(f"Embedding failed for chunk, skipping: {text[:60]!r}")
+# 3. Embed — batch واحد بدل loop
+    all_vectors = nlp_controller.embedding_client.embed_text(
+        text=texts,
+        document_type="document"
+    )
+
+    embedded = [
+        (text, meta, vec)
+        for text, meta, vec in zip(texts, metadata, all_vectors)
+        if vec
+    ]
 
     if not embedded:
         return JSONResponse(status_code=422, content={"signal": "embedding_failed_all_chunks"})
