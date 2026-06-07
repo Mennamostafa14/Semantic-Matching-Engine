@@ -1,4 +1,5 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from typing import Optional
 
 class Settings(BaseSettings):
 
@@ -30,12 +31,10 @@ class Settings(BaseSettings):
     GENERATION_DAFAULT_TEMPERATURE: float = None
 
     VECTOR_DB_BACKEND : str
-    VECTOR_DB_PATH : str | None 
     VECTOR_DB_DISTANCE_METHOD: str = None
-
-    VECTOR_DB_HOST : str | None
-    VECTOR_DB_PORT : int | None
-
+    VECTOR_DB_PATH: Optional[str] = None
+    VECTOR_DB_HOST: Optional[str] = None
+    VECTOR_DB_PORT: Optional[int] = None
 
     class Config:
         env_file = ".env"
