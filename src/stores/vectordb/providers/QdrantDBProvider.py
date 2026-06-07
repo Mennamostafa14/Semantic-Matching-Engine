@@ -4,15 +4,18 @@ from ..VectorDBEnums import DistanceMethodEnums
 import logging
 from typing import List
 from models.db_schemes import RetrievedDocument
-
+import hashlib
 
 class QdrantDBProvider(VectorDBInterface):
 
     SPARSE_VECTOR_NAME = "keywords"
 
-    def __init__(self, db_path: str, distance_method: str):
+    def __init__(self, db_path: str = None, db_host: str = None, 
+                db_port: int = 6333, distance_method: str = None):
         self.client = None
         self.db_path = db_path
+        self.db_host = db_host
+        self.db_port = db_port
         self.distance_method = None
 
         if distance_method == DistanceMethodEnums.COSINE.value:
@@ -23,7 +26,12 @@ class QdrantDBProvider(VectorDBInterface):
         self.logger = logging.getLogger(__name__)
 
     def connect(self):
-        self.client = QdrantClient(path=self.db_path)
+        if self.db_host:
+            # ✅ تتكلم مع الـ qdrant container
+            self.client = QdrantClient(host=self.db_host, port=self.db_port)
+        else:
+            # fallback لو local
+            self.client = QdrantClient(path=self.db_path)
 
     def disconnect(self):
         self.client = None
@@ -85,7 +93,7 @@ class QdrantDBProvider(VectorDBInterface):
         total = sum(tf.values())
         indices, values = [], []
         for term, count in tf.items():
-            idx = abs(hash(term)) % (2 ** 24)   # stable 24-bit index
+            idx = int(hashlib.md5(term.encode()).hexdigest()[:6], 16)   # always stable 
             indices.append(idx)
             values.append(round(count / total, 6))
 

@@ -31,6 +31,8 @@ GENERATION_DAFAULT_TEMPERATURE=0.1
 #======================= Vector DB Config ==========================
 VECTOR_DB_BACKEND="QDRANT"
 VECTOR_DB_PATH="qdrant_db"
+VECTOR_DB_HOST="qdrant"
+VECTOR_DB_PORT=6333
 VECTOR_DB_DISTANCE_METHOD="cosine"
 
 
