@@ -1,3 +1,4 @@
+# docker/minirag/Dockerfile
 FROM ghcr.io/astral-sh/uv:0.6.14-python3.10-bookworm
 
 WORKDIR /app
@@ -22,4 +23,4 @@ RUN uv pip install -r requirements.txt --system
 COPY src/ .
 
 # Command to run the application
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4"]
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]
